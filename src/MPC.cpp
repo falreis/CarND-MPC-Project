@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 25;    //same as classroom
-double dt = 0.05; //same as classroom
+size_t N = 30;    //same as classroom
+double dt = 0.1; //same as classroom
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -121,9 +121,16 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // element vector and there are 10 timesteps. The number of variables is:
   //
   // 4 * 10 + 2 * 9
-  size_t n_vars = (N * 6) + ((N-1)*2);
-  // TODO: Set the number of constraints
-  size_t n_constraints = (N * 6);
+  int n_vars = (N * 6) + ((N-1)*2);
+  int n_constraints = (N * 6);
+
+  Dvector vars(n_vars);
+  Dvector vars_lowerbound(n_vars);
+  Dvector vars_upperbound(n_vars);
+  Dvector constraints_lowerbound(n_constraints);
+  Dvector constraints_upperbound(n_constraints);
+
+  FG_eval fg_eval(coeffs);
 
   double x = state[0];
   double y = state[1];
@@ -134,11 +141,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
-  Dvector vars(n_vars);
-  for (size_t i = 0; i < n_vars; i++) {
+  for (int i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
-
   vars[x_start] = x;
   vars[y_start] = y;
   vars[psi_start] = psi;
@@ -146,22 +151,30 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars[cte_start] = cte;
   vars[epsi_start] = epsi;
 
-  Dvector vars_lowerbound(n_vars);
-  Dvector vars_upperbound(n_vars);
   // TODO: Set lower and upper limits for variables.
+  for (size_t i = 0; i < delta_start; i++) {
+    vars_lowerbound[i] = -1.0e19;
+    vars_upperbound[i] = 1.0e19;
+  }
+
+  for (size_t i = delta_start; i < a_start; i++) {
+    vars_lowerbound[i] = -25 * M_PI / 180;
+    vars_upperbound[i] = 25 * M_PI / 180;
+  }
+
+  for (int i = a_start; i < n_vars; i++) {
+    vars_lowerbound[i] = -1.0;
+    vars_upperbound[i] = 1.0;
+  }
 
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
-  Dvector constraints_lowerbound(n_constraints);
-  Dvector constraints_upperbound(n_constraints);
-  for (size_t i = 0; i < n_constraints; i++) {
-    constraints_lowerbound[i] = 0;
-    constraints_upperbound[i] = 0;
+  for (int j = 0; j < n_constraints; j++) {
+    constraints_lowerbound[j] = 0;
+    constraints_upperbound[j] = 0;
   }
 
   // object that computes objective and constraints
-  FG_eval fg_eval(coeffs);
-
   constraints_lowerbound[x_start] = x;
   constraints_lowerbound[y_start] = y;
   constraints_lowerbound[psi_start] = psi;
@@ -174,7 +187,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[psi_start] = psi;
   constraints_upperbound[v_start] = v;
   constraints_upperbound[cte_start] = cte;
-  constraints_upperbound[epsi_start] = epsi;
+  constraints_upperbound[epsi_start] = epsi; 
 
   //
   // NOTE: You don't have to worry about these options
@@ -214,8 +227,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-
-  double delta_m = (solution.x[delta_start] +solution.x[delta_start+1] +solution.x[delta_start+2])/3;
-  double a_m = (solution.x[a_start] + solution.x[a_start+1] + solution.x[a_start+2])/3;
+  double delta_m = (solution.x[delta_start] +solution.x[delta_start+1])/2;
+  double a_m = (solution.x[a_start] + solution.x[a_start+1])/2;
   return { delta_m, a_m };
 }
