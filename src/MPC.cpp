@@ -5,22 +5,6 @@
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
-size_t N = 30;    //same as classroom
-double dt = 0.1; //same as classroom
-
-// This value assumes the model presented in the classroom is used.
-//
-// It was obtained by measuring the radius formed by running the vehicle in the
-// simulator around in a circle with a constant steering angle and velocity on a
-// flat terrain.
-//
-// Lf was tuned until the the radius formed by the simulating the model
-// presented in the classroom matched the previous radius.
-//
-// This is the length from front to CoG that has a similar radius.
-const double Lf = 2.67;
-
 //variables
 size_t x_start = 0;                   //x = 0 + vt*cos(psi)*dt
 size_t y_start = x_start + N;         //y = 0 + vt*sin(psi)*dt
@@ -30,7 +14,7 @@ size_t cte_start = v_start + N;       //cte = f(x)- y + (vt*sin(epsi)*dt)
 size_t epsi_start = cte_start + N;    //epsi = psi - psi*des+ ((v/Lf)*delta*dt)
 size_t delta_start = epsi_start + N;  //
 size_t a_start = delta_start + N - 1; //
-size_t ref_v = 30;                     //reference velocity
+size_t ref_v = 20;                    //reference velocity
 
 class FG_eval {
  public:
@@ -108,10 +92,10 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC() {}
+MPC::MPC() { }
 MPC::~MPC() {}
 
-vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
+void MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
   //size_t i;   //unused
   typedef CPPAD_TESTVECTOR(double) Dvector;
@@ -129,8 +113,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   Dvector vars_upperbound(n_vars);
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
-
-  FG_eval fg_eval(coeffs);
 
   double x = state[0];
   double y = state[1];
@@ -158,8 +140,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   }
 
   for (size_t i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -25 * M_PI / 180;
-    vars_upperbound[i] = 25 * M_PI / 180;
+    vars_lowerbound[i] = -0.436332;
+    vars_upperbound[i] = 0.436332;
   }
 
   for (int i = a_start; i < n_vars; i++) {
@@ -189,6 +171,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi; 
 
+  FG_eval fg_eval(coeffs);
+
   //
   // NOTE: You don't have to worry about these options
   //
@@ -212,8 +196,15 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
-      options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
-      constraints_upperbound, fg_eval, solution);
+        options
+      , vars
+      , vars_lowerbound
+      , vars_upperbound
+      , constraints_lowerbound
+      , constraints_upperbound
+      , fg_eval
+      , solution
+  );
 
   // Check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
@@ -227,7 +218,16 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  double delta_m = (solution.x[delta_start] +solution.x[delta_start+1])/2;
-  double a_m = (solution.x[a_start] + solution.x[a_start+1])/2;
-  return { delta_m, a_m };
+  this->smothness = pow(1.03, solution.x[v_start]);
+
+  this->steer_value = solution.x[delta_start] / this->smothness;
+  this->throttle_value = solution.x[a_start] / this->smothness;
+
+  this->x_vals.clear();
+  this->y_vals.clear();
+
+  for (int i = 0; i < N; ++i) {
+    this->x_vals.push_back(solution.x[x_start + i]);
+    this->y_vals.push_back(solution.x[y_start + i]);
+  }
 }
