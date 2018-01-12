@@ -3,6 +3,37 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## Project Description
+
+### Model
+
+* **State:**
+The model is based on 6 variables, used to control and predict the car moviment. The state variables are:
+  * **x positions (x):**
+  * **y positions (y):**
+  * **velocity (v):**
+  * **orientation (psi):**
+  * **cross track error (cte):**
+  * **orientation error (epsi):**
+
+* **Actuators:**
+Actuators are the output of the process, how the controlled process will change the car to follow the path. The model contains 2 actuators:
+  * **steering angle (delta):**
+  * **acceleration (a):**
+
+* **Update Equations: **
+
+### Chosen Parameters
+
+* **Timestep lenght (***N***):**
+* **Elapsed time between timestep (***dt***):**
+
+### Polynomial Fits
+
+### Latency Handle
+
+---
+
 ## Dependencies
 
 * cmake >= 3.5
