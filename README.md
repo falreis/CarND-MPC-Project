@@ -8,29 +8,48 @@ Self-Driving Car Engineer Nanodegree Program
 ### Model
 
 * **State:**
-The model is based on 6 variables, used to control and predict the car moviment. The state variables are:
-  * **x positions (x):**
-  * **y positions (y):**
-  * **velocity (v):**
-  * **orientation (psi):**
-  * **cross track error (cte):**
-  * **orientation error (epsi):**
+The model is based on 6 input variables, used to control and predict the car moviment. The state variables are:
+  * **x positions (x):** the position of the vehicle over x coordinate
+  * **y positions (y):** the position of the vehicle over y coordinate
+  * **velocity (v):** the velocity of the vehicle on track
+  * **orientation (psi):** vehicle's orientation over the environment
+  * **cross track error (cte):** error related to the vehicle position (x and y coordinates)
+  * **orientation error (epsi):** error related to the vehicle orientation (psi)
 
 * **Actuators:**
 Actuators are the output of the process, how the controlled process will change the car to follow the path. The model contains 2 actuators:
-  * **steering angle (delta):**
-  * **acceleration (a):**
+  * **steering angle (delta):** angle of the tires, to turn the vehicle into an new orientation
+  * **acceleration (a):** acceleration of the vehicle (positive for increase velocity or negative, for break)
 
-* **Update Equations: **
+* **Update Equations: ** 
+
+x = x0 + (v0 * cos(psi) * dt);
+
+y = y0 + (v0 * sin(psi) * dt);
+
+psi = psi0 + ((v0 * delta) / (Lf * dt));
+
+v = v0 + (a0 * dt);
+
+cte = (f0 - y0) + (v0 * sin(epsi) * dt);
+
+epsi = (psi0 - atan(x0)) + ((v0 * delta) / (Lf * dt));
 
 ### Chosen Parameters
+Parameters chosen to increase the performance of the vehicle over the track.
 
-* **Timestep lenght (***N***):**
-* **Elapsed time between timestep (***dt***):**
+* **Timestep lenght (***N***):** 10
+* **Elapsed time between timestep (***dt***):** 0.2
+
+I choosed this parameters above after some tests with different parameters. I tested different paramenters in a range for *N* between 5 and 20 and, for *dt*, between 0.05 and 0.2. The best results were resulted over the parameters above. Some parameters caused a sloppy behaviour of the vehicle over the track.
 
 ### Polynomial Fits
 
+*Polynomial fit* and *polynomial eval* were applied over the waypoints, calculated over the position of the vehicle (x,y) and the orientation (psi). The values returned for the polynomial operations were used to define the expect track and also  to calculate cross track error (cte) and orientation error (epsi). 
+
 ### Latency Handle
+
+Latency is simulated in the code with an sleep process that pause the execution for 100ms. With this latency, the code runs only over small intervals with 100ms of delay. The values were calculated using the previous values of the last inputs. The outputs run with a small delay that is smaller than humans reactions time.
 
 ---
 
