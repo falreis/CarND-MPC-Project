@@ -22,12 +22,12 @@ Actuators are the output of the process, how the controlled process will change 
   * **acceleration (a):** acceleration of the vehicle (positive for increase velocity or negative, for break)
 
 * **Update Equations:** 
-  * x = x0 + (vt*cos(psi)*dt)
-  * y = y0 + (vt*sin(psi)*dt)
-  * psi = psi0 + ((v/Lf)*delta*dt)
-  * v = v0 + (a*dt)
-  * cte = f(x)- y + (vt*sin(epsi)*dt)
-  * epsi = epsi = psi - (psi*des)+ ((v/Lf)*delta*dt)
+  * x = x0 + (vt * cos(psi) * dt)
+  * y = y0 + (vt * sin(psi) * dt)
+  * psi = psi0 + ((v/Lf) * delta * dt)
+  * v = v0 + (a * dt)
+  * cte = f(x)- y + (vt * sin(epsi) * dt)
+  * epsi = psi - (psi * des)+ ((v/Lf) * delta * dt)
 
 ### Chosen Parameters
 Parameters chosen to increase the performance of the vehicle over the track.
