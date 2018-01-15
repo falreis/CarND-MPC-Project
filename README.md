@@ -21,19 +21,13 @@ Actuators are the output of the process, how the controlled process will change 
   * **steering angle (delta):** angle of the tires, to turn the vehicle into an new orientation
   * **acceleration (a):** acceleration of the vehicle (positive for increase velocity or negative, for break)
 
-* **Update Equations: ** 
-
-x = x0 + (v0 * cos(psi) * dt);
-
-y = y0 + (v0 * sin(psi) * dt);
-
-psi = psi0 + ((v0 * delta) / (Lf * dt));
-
-v = v0 + (a0 * dt);
-
-cte = (f0 - y0) + (v0 * sin(epsi) * dt);
-
-epsi = (psi0 - atan(x0)) + ((v0 * delta) / (Lf * dt));
+* **Update Equations:** 
+  * x = x0 + (v0 * cos(psi) * dt);
+  * y = y0 + (v0 * sin(psi) * dt);
+  * psi = psi0 + ((v0 * delta) / (Lf * dt));
+  * v = v0 + (a0 * dt);
+  * cte = (f0 - y0) + (v0 * sin(epsi) * dt);
+  * epsi = (psi0 - atan(x0)) + ((v0 * delta) / (Lf * dt));
 
 ### Chosen Parameters
 Parameters chosen to increase the performance of the vehicle over the track.
