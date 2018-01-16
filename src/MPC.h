@@ -8,8 +8,7 @@ using namespace std;
 
 // TODO: Set the timestep length and duration
 const int N = 10;             
-const double dt = 0.2;       
-
+const double dt = 0.1;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -37,7 +36,6 @@ class MPC {
   std::vector<double> y_vals;
   double steer_value;
   double throttle_value;
-  double smothness; //smothness factor to decrease high direction changes
 };
 
 #endif /* MPC_H */

@@ -2,6 +2,7 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
+#include "Helper.hpp"
 
 using CppAD::AD;
 
@@ -14,7 +15,7 @@ size_t cte_start = v_start + N;       //cte = f(x)- y + (vt*sin(epsi)*dt)
 size_t epsi_start = cte_start + N;    //epsi = psi - psi*des+ ((v/Lf)*delta*dt)
 size_t delta_start = epsi_start + N;  //
 size_t a_start = delta_start + N - 1; //
-size_t ref_v = 20;                    //reference velocity
+size_t ref_v = 10;                    //reference velocity (in m/s)
 
 class FG_eval {
  public:
@@ -30,22 +31,30 @@ class FG_eval {
     // the Solver function below.
     fg[0]= 0;
 
+    const double weight_cte = 1.5;
+    const double weight_epsi = 1;
+    const double weight_velocity = 1;
+    const double weight_delta = 5;
+    const double weight_acc = 1;
+    const double weight_gap_angle = 1;
+    const double weight_gap_acc = 1;
+
     for (size_t t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
-      fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
+      fg[0] += CppAD::pow(vars[cte_start + t], 2) * weight_cte;
+      fg[0] += CppAD::pow(vars[epsi_start + t], 2) * weight_epsi;
+      fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2) * weight_velocity;
     }
 
     // Minimize the use of actuators.
     for (size_t t = 0; t < N - 1; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += CppAD::pow(vars[delta_start + t], 2) * weight_delta;
+      fg[0] += CppAD::pow(vars[a_start + t], 2) * weight_acc;
     }
 
     // Minimize the value gap between sequential actuations.
     for (size_t t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2) * weight_gap_angle;
+      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2) * weight_gap_acc;
     }
 
     fg[x_start+1] = vars[x_start];
@@ -76,8 +85,9 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      //3rd order polynomial and its derivative derivative
+      AD<double> f0 = (pow(x0,3) * coeffs[3]) + (pow(x0,2) * coeffs[2]) + (coeffs[1] * x0) + coeffs[0]; //ax^3 + bx^2 + cx + d
+      AD<double> psides0 = CppAD::atan((3 * pow(x0,2) * coeffs[2]) + (2 * coeffs[1] * x0) + coeffs[0]); //3ax^2 + 2bx + c
 
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
@@ -114,12 +124,12 @@ void MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
 
-  double x = state[0];
-  double y = state[1];
-  double psi = state[2];
-  double v = state[3];
-  double cte = state[4];
-  double epsi = state[5];
+  const double x = state[0];
+  const double y = state[1];
+  const double psi = state[2];
+  const double v = state[3];
+  const double cte = state[4];
+  const double epsi = state[5];
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -218,16 +228,18 @@ void MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
-  this->smothness = pow(1.03, solution.x[v_start]);
-
-  this->steer_value = solution.x[delta_start] / this->smothness;
-  this->throttle_value = solution.x[a_start] / this->smothness;
+  this->steer_value = solution.x[delta_start];
+  this->throttle_value = solution.x[a_start];
 
   this->x_vals.clear();
   this->y_vals.clear();
 
+  const double xfactor = 8.0;
+
   for (int i = 0; i < N; ++i) {
-    this->x_vals.push_back(solution.x[x_start + i]);
-    this->y_vals.push_back(solution.x[y_start + i]);
+    const double x_val = xfactor * i;
+    const double y_val = (pow(x_val,3) * coeffs[3]) + (pow(x_val,2) * coeffs[2]) + (x_val * coeffs[1]) + coeffs[0];
+    this->x_vals.push_back(x_val);
+    this->y_vals.push_back(-y_val);
   }
 }

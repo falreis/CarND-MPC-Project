@@ -8,62 +8,10 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "MPC.h"
 #include "json.hpp"
+#include "Helper.hpp"
 
 // for convenience
 using json = nlohmann::json;
-
-// For converting back and forth between radians and degrees.
-constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
-
-// Checks if the SocketIO event has JSON data.
-// If there is data the JSON object in string format will be returned,
-// else the empty string "" will be returned.
-string hasData(string s) {
-  auto found_null = s.find("null");
-  auto b1 = s.find_first_of("[");
-  auto b2 = s.rfind("}]");
-  if (found_null != string::npos) {
-    return "";
-  } else if (b1 != string::npos && b2 != string::npos) {
-    return s.substr(b1, b2 - b1 + 2);
-  }
-  return "";
-}
-
-// Evaluate a polynomial.
-double polyeval(Eigen::VectorXd coeffs, double x) {
-  double result = 0.0;
-  for (int i = 0; i < coeffs.size(); i++) {
-    result += coeffs[i] * pow(x, i);
-  }
-  return result;
-}
-
-// Fit a polynomial.
-// Adapted from
-// https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
-Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
-                        int order) {
-  assert(xvals.size() == yvals.size());
-  assert(order >= 1 && order <= xvals.size() - 1);
-  Eigen::MatrixXd A(xvals.size(), order + 1);
-
-  for (int i = 0; i < xvals.size(); i++) {
-    A(i, 0) = 1.0;
-  }
-
-  for (int j = 0; j < xvals.size(); j++) {
-    for (int i = 0; i < order; i++) {
-      A(j, i + 1) = A(j, i) * xvals(j);
-    }
-  }
-
-  auto Q = A.householderQr();
-  auto result = Q.solve(yvals);
-  return result;
-}
 
 int main() {
   uWS::Hub h;
@@ -79,7 +27,7 @@ int main() {
     string sdata = string(data).substr(0, length);
     cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
-      string s = hasData(sdata);
+      string s = Helper::hasData(sdata);
       if (s != "") {
         auto j = json::parse(s);
         string event = j[0].get<string>();
@@ -90,38 +38,40 @@ int main() {
           double px = j[1]["x"];
           double py = j[1]["y"];
           double psi = j[1]["psi"];
-          double v = j[1]["speed"];
+          double v = Helper::mph2mps(j[1]["speed"]);
+          double delta = j[1]["steering_angle"];
+          double a = j[1]["throttle"];
 
-          Eigen::VectorXd state(6);
+          //convert coordinates
           int waypoints_size = ptsx.size();
-          Eigen::VectorXd waypoints_x(waypoints_size);
-          Eigen::VectorXd waypoints_y(waypoints_size);
-
-          for(int i=0; i<waypoints_size; ++i){
-            double diff_x = (ptsx[i] - px);
-            double diff_y = (ptsy[i] - py);
-            waypoints_x[i] = (diff_x * cos(-psi)) - (diff_y * sin(-psi));
-            waypoints_y[i] = -(diff_x * sin(-psi)) - (diff_y * cos(-psi));
-          }
+          auto waypoints = Helper::convertCoordinates(ptsx, ptsy, px, py, psi);
+          Eigen::VectorXd waypoints_x = waypoints.at(0);
+          Eigen::VectorXd waypoints_y = waypoints.at(1);
 
           // fit polynomial
-          //auto coeffs = polyfit(Coords.col(0), Coords.col(1), 3);
-          auto coeffs = polyfit(waypoints_x, waypoints_y, 3); //polynomial order 3
-          double cte = polyeval(coeffs, 0.0);
+          auto coeffs = Helper::polyfit(waypoints_x, waypoints_y, 3); //polynomial order 3
+          double cte = Helper::polyeval(coeffs, 0.0);
           double epsi = psi - atan(coeffs[1]);
 
-          /**
-           * Create the state which will get sent to the solver.
-           */
-          state << 0, 0, 0, v, cte, epsi;
+          //Create the state which will get sent to the solver.
+          //apply latency compensation
+          Eigen::VectorXd state(6);
+          state << (0 + (v * cos(psi) * dt))
+            , (0 + (v * sin(psi) * dt))
+            , (0 + ((v /Lf) * delta * dt))
+            , (v + (a * dt))
+            , cte
+            , epsi
+          ;
           mpc.Solve(state, coeffs);
 
+          //print information on track
           json msgJson;
 
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
           //define steer_value and throttle_value
-          msgJson["steering_angle"] = (mpc.steer_value * 180 / M_PI) / 25;
+          msgJson["steering_angle"] = Helper::rad2deg(mpc.steer_value) / 25;
           msgJson["throttle"] = mpc.throttle_value;
 
           //Display the MPC predicted trajectory 
