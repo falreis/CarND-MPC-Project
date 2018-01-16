@@ -33,9 +33,11 @@ Actuators are the output of the process, how the controlled process will change 
 Parameters chosen to increase the performance of the vehicle over the track.
 
 * **Timestep lenght (***N***):** 10
-* **Elapsed time between timestep (***dt***):** 0.2
+* **Elapsed time between timestep (***dt***):** 0.1
 
 I choosed this parameters above after some tests with different parameters. I tested different paramenters in a range for *N* between 5 and 20 and, for *dt*, between 0.05 and 0.2. The best results were resulted over the parameters above. Some parameters caused a sloppy behaviour of the vehicle over the track.
+
+It's important to say that I chose some weight paramters to increase some states and actuators, like cross track error and steering angle.
 
 ### Polynomial Fits
 
@@ -43,7 +45,7 @@ I choosed this parameters above after some tests with different parameters. I te
 
 ### Latency Handle
 
-Latency is simulated in the code with an sleep process that pause the execution for 100ms. With this latency, the code runs only over small intervals with 100ms of delay. The values were calculated using the previous values of the last inputs. The outputs run with a small delay that is smaller than humans reactions time.
+Latency is simulated in the code with an sleep process that pause the execution for 100ms. With this latency, the code runs only over small intervals with 100ms of delay. To handle this latency, I calculate values for the next parameter, using acceleration, current velocity and the current angle. The calculations give me an expected value and I use that to predict the next position of the vehicle.
 
 ---
 
